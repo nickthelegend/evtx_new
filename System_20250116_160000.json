@@ -1,0 +1,34 @@
+[
+    {
+        "EventID": 158,
+        "TimeGenerated": "2025-01-16 15:58:20",
+        "SourceName": "Microsoft-Windows-Time-Service",
+        "EventType": "Information",
+        "EventCategory": 0,
+        "Message": "The time provider 'VMICTimeProvider' has indicated that the current hardware and operating environment is not supported and has stopped. This behavior is expected for VMICTimeProvider on non-HyperV-guest environments. This may be the expected behavior for the current provider in the current operating environment as well.\r\n"
+    },
+    {
+        "EventID": 158,
+        "TimeGenerated": "2025-01-16 15:58:19",
+        "SourceName": "Microsoft-Windows-Time-Service",
+        "EventType": "Information",
+        "EventCategory": 0,
+        "Message": "The time provider 'VMICTimeProvider' has indicated that the current hardware and operating environment is not supported and has stopped. This behavior is expected for VMICTimeProvider on non-HyperV-guest environments. This may be the expected behavior for the current provider in the current operating environment as well.\r\n"
+    },
+    {
+        "EventID": 1014,
+        "TimeGenerated": "2025-01-16 15:57:53",
+        "SourceName": "Microsoft-Windows-DNS-Client",
+        "EventType": "Warning",
+        "EventCategory": 1014,
+        "Message": "Name resolution for the name ns2.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6296.\r\n"
+    },
+    {
+        "EventID": 1014,
+        "TimeGenerated": "2025-01-16 15:54:17",
+        "SourceName": "Microsoft-Windows-DNS-Client",
+        "EventType": "Warning",
+        "EventCategory": 1014,
+        "Message": "Name resolution for the name ns1.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6296.\r\n"
+    }
+]

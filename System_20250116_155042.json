@@ -1,0 +1,50 @@
+[
+    {
+        "EventID": 1073748864,
+        "TimeGenerated": "2025-01-16 15:49:28",
+        "SourceName": "Service Control Manager",
+        "EventType": "Information",
+        "EventCategory": 0,
+        "Message": "The start type of the Background Intelligent Transfer Service service was changed from auto start to demand start.\r\n"
+    },
+    {
+        "EventID": -1073348572,
+        "TimeGenerated": "2025-01-16 15:49:15",
+        "SourceName": "volsnap",
+        "EventType": "Error",
+        "EventCategory": 0,
+        "Message": "The shadow copies of volume C: were aborted because the shadow copy storage could not grow due to a user imposed limit.\r\n"
+    },
+    {
+        "EventID": 1014,
+        "TimeGenerated": "2025-01-16 15:47:48",
+        "SourceName": "Microsoft-Windows-DNS-Client",
+        "EventType": "Warning",
+        "EventCategory": 1014,
+        "Message": "Name resolution for the name ns2.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6296.\r\n"
+    },
+    {
+        "EventID": 1073748864,
+        "TimeGenerated": "2025-01-16 15:46:59",
+        "SourceName": "Service Control Manager",
+        "EventType": "Information",
+        "EventCategory": 0,
+        "Message": "The start type of the Background Intelligent Transfer Service service was changed from demand start to auto start.\r\n"
+    },
+    {
+        "EventID": 10016,
+        "TimeGenerated": "2025-01-16 15:46:06",
+        "SourceName": "DCOM",
+        "EventType": "Warning",
+        "EventCategory": 0,
+        "Message": "<The description for Event ID ( 10016 ) in Source ( 'DCOM' ) could not be found. It contains the following insertion string(s):'application-specific, Local, Activation, {2593F8B9-4EAF-457C-B68A-50F6B8EA6B54}, {15C20B67-12E7-4BB6-92BB-7AFF07997402}, JAIBAJRANG, testi, S-1-5-21-4176545725-3240412065-1138046539-1002, LocalHost (Using LRPC), MicrosoftTeams_24348.802.3311.5092_x64__8wekyb3d8bbwe, Unavailable'.>"
+    },
+    {
+        "EventID": 1014,
+        "TimeGenerated": "2025-01-16 15:42:46",
+        "SourceName": "Microsoft-Windows-DNS-Client",
+        "EventType": "Warning",
+        "EventCategory": 1014,
+        "Message": "Name resolution for the name ns2.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6296.\r\n"
+    }
+]
