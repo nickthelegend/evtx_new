@@ -56,16 +56,21 @@ def get_logs(log_type, start_time):
     
     logging.info(f"Collected {len(logs)} events from {log_type} log")
     return logs
+
 def export_to_json(logs, filename):
     try:
-        with open(filename, 'w') as f:
+        os.makedirs('json', exist_ok=True)
+        full_path = os.path.join('json', filename)
+        with open(full_path, 'w') as f:
             json.dump(logs, f, indent=4)
-        logging.info(f"Exported {len(logs)} events to JSON: {filename}")
+        logging.info(f"Exported {len(logs)} events to JSON: {full_path}")
     except Exception as e:
         logging.error(f"Error exporting to JSON: {str(e)}")
 
 def export_to_xml(logs, filename):
     try:
+        os.makedirs('xml', exist_ok=True)
+        full_path = os.path.join('xml', filename)
         root = ET.Element("Events")
         for log in logs:
             event = ET.SubElement(root, "Event")
@@ -73,10 +78,26 @@ def export_to_xml(logs, filename):
                 ET.SubElement(event, key).text = str(value)
         
         tree = ET.ElementTree(root)
-        tree.write(filename)
-        logging.info(f"Exported {len(logs)} events to XML: {filename}")
+        tree.write(full_path)
+        logging.info(f"Exported {len(logs)} events to XML: {full_path}")
     except Exception as e:
         logging.error(f"Error exporting to XML: {str(e)}")
+
+def export_to_evtx(log_type):
+    try:
+        os.makedirs('evtx', exist_ok=True)
+        filename = f"{log_type}.evtx"
+        full_path = os.path.join('evtx', filename)
+        
+        command = f'wevtutil epl "{log_type}" "{full_path}"'
+        result = os.system(command)
+        
+        if result == 0:
+            logging.info(f"Exported full EVTX for {log_type}: {full_path}")
+        else:
+            logging.error(f"Failed to export EVTX for {log_type}. Command exit code: {result}")
+    except Exception as e:
+        logging.error(f"Error exporting to EVTX: {str(e)}")
 
 def main():
     log_types = ['System', 'Security', 'Application']
@@ -97,6 +118,7 @@ def main():
                 
                 export_to_json(logs, f"{base_filename}.json")
                 export_to_xml(logs, f"{base_filename}.xml")
+                export_to_evtx(log_type)  # Export full EVTX without timestamp
             else:
                 logging.warning(f"No logs collected for {log_type}")
         
@@ -117,4 +139,3 @@ if __name__ == "__main__":
     except Exception as e:
         logging.critical(f"Unexpected error: {str(e)}")
 
-        

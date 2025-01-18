@@ -1,3 +1,0 @@
-<Events><Event><EventID>1014</EventID><TimeGenerated>2025-01-16 21:47:30</TimeGenerated><SourceName>Microsoft-Windows-DNS-Client</SourceName><EventType>Warning</EventType><EventCategory>1014</EventCategory><Message>Name resolution for the name ns1.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6296.
-</Message></Event><Event><EventID>1014</EventID><TimeGenerated>2025-01-16 21:42:44</TimeGenerated><SourceName>Microsoft-Windows-DNS-Client</SourceName><EventType>Warning</EventType><EventCategory>1014</EventCategory><Message>Name resolution for the name ns1.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6296.
-</Message></Event></Events>

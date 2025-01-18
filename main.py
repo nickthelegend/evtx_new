@@ -1,74 +1,151 @@
-import subprocess
+import win32evtlog
+import win32evtlogutil
+import win32security
+import winerror
+import datetime
+import time
+import json
+import xml.etree.ElementTree as ET
 import os
-from datetime import datetime, timedelta
+import logging
+import shutil
 
-def export_logs(logs, output_dir):
-    """
-    Export full event logs using 'wevtutil epl'.
-    """
-    for log in logs:
-        output_file = os.path.join(output_dir, f"{log}.evtx")
-        print(f"Exporting log: {log} to {output_file}")
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-        try:
-            result = subprocess.run(
-                ["wevtutil", "epl", log, output_file, "/ow:true"],
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode == 0:
-                print(f"Successfully exported: {log}")
-            else:
-                print(f"Failed to export: {log}. Error: {result.stderr}")
-        except Exception as e:
-            print(f"Error exporting log {log}: {e}")
+def event_type_to_string(event_type):
+    types = {
+        win32evtlog.EVENTLOG_SUCCESS: 'Success',
+        win32evtlog.EVENTLOG_AUDIT_SUCCESS: 'Audit Success',
+        win32evtlog.EVENTLOG_AUDIT_FAILURE: 'Audit Failure',
+        win32evtlog.EVENTLOG_ERROR_TYPE: 'Error',
+        win32evtlog.EVENTLOG_WARNING_TYPE: 'Warning',
+        win32evtlog.EVENTLOG_INFORMATION_TYPE: 'Information'
+    }
+    return types.get(event_type, f'Unknown ({event_type})')
 
+def get_logs(log_type, start_time):
+    logs = []
+    try:
+        handle = win32evtlog.OpenEventLog(None, log_type)
+        flags = win32evtlog.EVENTLOG_BACKWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
+        total_events = win32evtlog.GetNumberOfEventLogRecords(handle)
+        logging.info(f"Total events in {log_type} log: {total_events}")
 
-def process_recent_logs(logs, output_dir):
-    """
-    Query recent logs using 'wevtutil qe'.
-    """
-    now = datetime.now()
-    ten_minutes_ago = now - timedelta(minutes=10)
-    time_filter = ten_minutes_ago.strftime("%Y-%m-%dT%H:%M:%S")
+        events = win32evtlog.ReadEventLog(handle, flags, 0)
+        
+        for event in events:
+            if event.TimeGenerated > start_time:
+                try:
+                    data = {
+                        'EventID': event.EventID,
+                        'TimeGenerated': str(event.TimeGenerated),
+                        'SourceName': event.SourceName,
+                        'EventType': event_type_to_string(event.EventType),
+                        'EventCategory': event.EventCategory,
+                        'Message': win32evtlogutil.SafeFormatMessage(event, log_type)
+                    }
+                    logs.append(data)
+                    logging.debug(f"Processed event: {data['EventID']} from {data['SourceName']}")
+                except Exception as e:
+                    logging.error(f"Error processing event: {str(e)}")
+        
+        win32evtlog.CloseEventLog(handle)
+    except Exception as e:
+        logging.error(f"Error reading {log_type} log: {str(e)}")
+    
+    logging.info(f"Collected {len(logs)} events from {log_type} log")
+    return logs
 
-    for log in logs:
-        output_file = os.path.join(output_dir, f"recent_{log}.evtx")
-        print(f"Querying recent events for log: {log}")
+def export_to_json(logs, filename):
+    try:
+        with open(filename, 'w') as f:
+            json.dump(logs, f, indent=4)
+        logging.info(f"Exported {len(logs)} events to JSON: {filename}")
+    except Exception as e:
+        logging.error(f"Error exporting to JSON: {str(e)}")
 
-        try:
-            # Use 'wevtutil qe' to query logs based on time filter
-            query = f"*[System[TimeCreated[@SystemTime >= '{time_filter}']]]"
-            result = subprocess.run(
-                ["wevtutil", "qe", log, "/q", query, "/f:RenderedXml"],
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode == 0:
-                # Save the queried logs to a file
-                with open(output_file, "w", encoding="utf-8") as file:
-                    file.write(result.stdout)
-                print(f"Successfully queried recent events for: {log}")
-            else:
-                print(f"Failed to query recent events for {log}. Error: {result.stderr}")
-        except Exception as e:
-            print(f"Error querying recent logs for {log}: {e}")
+def export_to_xml(logs, filename):
+    try:
+        root = ET.Element("Events")
+        for log in logs:
+            event = ET.SubElement(root, "Event")
+            for key, value in log.items():
+                ET.SubElement(event, key).text = str(value)
+        
+        tree = ET.ElementTree(root)
+        tree.write(filename)
+        logging.info(f"Exported {len(logs)} events to XML: {filename}")
+    except Exception as e:
+        logging.error(f"Error exporting to XML: {str(e)}")
 
+def save_evtx(log_type, filename):
+    try:
+        os.system(f'wevtutil epl {log_type} {filename}')
+        logging.info(f"Saved EVTX file: {filename}")
+    except Exception as e:
+        logging.error(f"Error saving EVTX file: {str(e)}")
+
+def create_folders():
+    folders = ['evtx', 'xml', 'json']
+    for folder in folders:
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+            logging.info(f"Created folder: {folder}")
+
+def move_file(src, dest):
+    try:
+        shutil.move(src, dest)
+        logging.info(f"Moved file from {src} to {dest}")
+    except Exception as e:
+        logging.error(f"Error moving file: {str(e)}")
 
 def main():
-    # Define the logs to process and directories
-    logs = ["Application", "Security", "System"]
-    output_dir = "C:/RecentLogs"
-
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Export full logs
-    export_logs(logs, output_dir)
-
-    # Process recent logs
-    process_recent_logs(logs, output_dir)
-
+    log_types = ['System', 'Security', 'Application']
+    create_folders()
+    
+    while True:
+        start_time = datetime.datetime.now() - datetime.timedelta(minutes=10)
+        end_time = datetime.datetime.now()
+        
+        logging.info(f"Starting log collection for period: {start_time} to {end_time}")
+        
+        for log_type in log_types:
+            logging.info(f"Processing {log_type} logs")
+            logs = get_logs(log_type, start_time)
+            
+            if logs:
+                timestamp = end_time.strftime("%Y%m%d_%H%M%S")
+                base_filename = f"{log_type}_{timestamp}"
+                
+                json_file = f"{base_filename}.json"
+                xml_file = f"{base_filename}.xml"
+                evtx_file = f"{base_filename}.evtx"
+                
+                export_to_json(logs, json_file)
+                export_to_xml(logs, xml_file)
+                save_evtx(log_type, evtx_file)
+                
+                move_file(json_file, os.path.join('json', json_file))
+                move_file(xml_file, os.path.join('xml', xml_file))
+                move_file(evtx_file, os.path.join('evtx', evtx_file))
+            else:
+                logging.warning(f"No logs collected for {log_type}")
+        
+        logging.info(f"Log collection cycle completed. Waiting for next cycle.")
+        
+        # Wait until the next 10-minute mark
+        next_run = datetime.datetime.now() + datetime.timedelta(minutes=10)
+        next_run = next_run.replace(minute=next_run.minute // 10 * 10, second=0, microsecond=0)
+        wait_time = (next_run - datetime.datetime.now()).total_seconds()
+        time.sleep(wait_time)
 
 if __name__ == "__main__":
-    main()
+    logging.info("Starting Windows Log Collector")
+    try:
+        main()
+    except KeyboardInterrupt:
+        logging.info("Script terminated by user")
+    except Exception as e:
+        logging.critical(f"Unexpected error: {str(e)}")
+
