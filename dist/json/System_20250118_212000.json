@@ -1,0 +1,18 @@
+[
+    {
+        "EventID": 1014,
+        "TimeGenerated": "2025-01-18 21:16:10",
+        "SourceName": "Microsoft-Windows-DNS-Client",
+        "EventType": "Warning",
+        "EventCategory": 1014,
+        "Message": "Name resolution for the name ns2.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6076.\r\n"
+    },
+    {
+        "EventID": 1014,
+        "TimeGenerated": "2025-01-18 21:10:39",
+        "SourceName": "Microsoft-Windows-DNS-Client",
+        "EventType": "Warning",
+        "EventCategory": 1014,
+        "Message": "Name resolution for the name ns2.usaupload.co timed out after none of the configured DNS servers responded. Client PID 6076.\r\n"
+    }
+]

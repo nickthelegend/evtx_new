@@ -1,0 +1,3 @@
+<Events><Event><EventID>1033</EventID><TimeGenerated>2025-01-18 21:05:49</TimeGenerated><SourceName>MsiInstaller</SourceName><EventType>Information</EventType><EventCategory>0</EventCategory><Message>Windows Installer installed the product. Product Name: my-app. Product Version: 0.1.0. Product Language: 1033. Manufacturer: nickthelegend. Installation success or error status: 0.
+</Message></Event><Event><EventID>11707</EventID><TimeGenerated>2025-01-18 21:05:49</TimeGenerated><SourceName>MsiInstaller</SourceName><EventType>Information</EventType><EventCategory>0</EventCategory><Message>Product: my-app -- Installation completed successfully.
+</Message></Event></Events>

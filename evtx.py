@@ -1,17 +1,21 @@
 import win32evtlog
 import win32evtlogutil
-import win32security
-import winerror
 import datetime
 import time
 import json
 import xml.etree.ElementTree as ET
 import os
 import logging
+import requests
+import asyncio
+import socket
+import sys
 
 # Set up logging
-# Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# HOSTNAME = socket.gethostname()
+API_ENDPOINT = "http://localhost:3001/api/logs"
 
 def event_type_to_string(event_type):
     types = {
@@ -24,13 +28,13 @@ def event_type_to_string(event_type):
     }
     return types.get(event_type, f'Unknown ({event_type})')
 
-def get_logs(log_type, start_time):
+def get_security_logs(start_time):
     logs = []
     try:
-        handle = win32evtlog.OpenEventLog(None, log_type)
+        handle = win32evtlog.OpenEventLog(None, 'Security')
         flags = win32evtlog.EVENTLOG_BACKWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
         total_events = win32evtlog.GetNumberOfEventLogRecords(handle)
-        logging.info(f"Total events in {log_type} log: {total_events}")
+        logging.info(f"Total events in Security log: {total_events}")
 
         events = win32evtlog.ReadEventLog(handle, flags, 0)
         
@@ -43,7 +47,7 @@ def get_logs(log_type, start_time):
                         'SourceName': event.SourceName,
                         'EventType': event_type_to_string(event.EventType),
                         'EventCategory': event.EventCategory,
-                        'Message': win32evtlogutil.SafeFormatMessage(event, log_type)
+                        'Message': win32evtlogutil.SafeFormatMessage(event, 'Security')
                     }
                     logs.append(data)
                     logging.debug(f"Processed event: {data['EventID']} from {data['SourceName']}")
@@ -52,75 +56,52 @@ def get_logs(log_type, start_time):
         
         win32evtlog.CloseEventLog(handle)
     except Exception as e:
-        logging.error(f"Error reading {log_type} log: {str(e)}")
+        logging.error(f"Error reading Security log: {str(e)}")
     
-    logging.info(f"Collected {len(logs)} events from {log_type} log")
+    logging.info(f"Collected {len(logs)} events from Security log")
     return logs
 
-def export_to_json(logs, filename):
+async def upload_to_api(logs, access_key):
     try:
-        os.makedirs('json', exist_ok=True)
-        full_path = os.path.join('json', filename)
-        with open(full_path, 'w') as f:
-            json.dump(logs, f, indent=4)
-        logging.info(f"Exported {len(logs)} events to JSON: {full_path}")
-    except Exception as e:
-        logging.error(f"Error exporting to JSON: {str(e)}")
-
-def export_to_xml(logs, filename):
-    try:
-        os.makedirs('xml', exist_ok=True)
-        full_path = os.path.join('xml', filename)
+        # Create XML
         root = ET.Element("Events")
         for log in logs:
             event = ET.SubElement(root, "Event")
             for key, value in log.items():
                 ET.SubElement(event, key).text = str(value)
         
-        tree = ET.ElementTree(root)
-        tree.write(full_path)
-        logging.info(f"Exported {len(logs)} events to XML: {full_path}")
-    except Exception as e:
-        logging.error(f"Error exporting to XML: {str(e)}")
-
-def export_to_evtx(log_type):
-    try:
-        os.makedirs('evtx', exist_ok=True)
-        filename = f"{log_type}.evtx"
-        full_path = os.path.join('evtx', filename)
+        xml_content = ET.tostring(root, encoding='unicode')
         
-        command = f'wevtutil epl "{log_type}" "{full_path}"'
-        result = os.system(command)
-        
-        if result == 0:
-            logging.info(f"Exported full EVTX for {log_type}: {full_path}")
+        # Send to API
+        response = requests.post(
+            API_ENDPOINT,
+            files={
+                'xml_file': ('logs.xml', xml_content, 'application/xml'),
+            },
+            data={
+                'accessKey': access_key,
+            }
+        )
+            
+        if response.status_code == 200:
+            logging.info(f"Uploaded logs to API successfully")
         else:
-            logging.error(f"Failed to export EVTX for {log_type}. Command exit code: {result}")
+            logging.error(f"Failed to upload to API. Status code: {response.status_code}")
+            logging.error(f"Response: {response.text}")
     except Exception as e:
-        logging.error(f"Error exporting to EVTX: {str(e)}")
+        logging.error(f"Error uploading to API: {str(e)}")
 
-def main():
-    log_types = ['System', 'Security', 'Application']
-    
+async def main(access_key):
     while True:
         start_time = datetime.datetime.now() - datetime.timedelta(minutes=10)
         end_time = datetime.datetime.now()
         
         logging.info(f"Starting log collection for period: {start_time} to {end_time}")
         
-        for log_type in log_types:
-            logging.info(f"Processing {log_type} logs")
-            logs = get_logs(log_type, start_time)
-            
-            if logs:
-                timestamp = end_time.strftime("%Y%m%d_%H%M%S")
-                base_filename = f"{log_type}_{timestamp}"
-                
-                export_to_json(logs, f"{base_filename}.json")
-                export_to_xml(logs, f"{base_filename}.xml")
-                export_to_evtx(log_type)  # Export full EVTX without timestamp
-            else:
-                logging.warning(f"No logs collected for {log_type}")
+        logs = get_security_logs(start_time)
+        
+        if logs:
+            await upload_to_api(logs, access_key)
         
         logging.info(f"Log collection cycle completed. Waiting for next cycle.")
         
@@ -128,12 +109,19 @@ def main():
         next_run = datetime.datetime.now() + datetime.timedelta(minutes=10)
         next_run = next_run.replace(minute=next_run.minute // 10 * 10, second=0, microsecond=0)
         wait_time = (next_run - datetime.datetime.now()).total_seconds()
-        time.sleep(wait_time)
+        await asyncio.sleep(wait_time)
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python evtx.py <access_key>")
+        sys.exit(1)
+    
+    access_key = sys.argv[1]
+    logging.info(f"Logging Access key {access_key}")
+
     logging.info("Starting Windows Log Collector")
     try:
-        main()
+        asyncio.run(main(access_key))
     except KeyboardInterrupt:
         logging.info("Script terminated by user")
     except Exception as e:
