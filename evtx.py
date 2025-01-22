@@ -10,12 +10,21 @@ import requests
 import asyncio
 import socket
 import sys
+import subprocess
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# HOSTNAME = socket.gethostname()
-API_ENDPOINT = "http://localhost:3001/api/logs"
+API_ENDPOINT = "http://localhost:3000/api/logs"
+CHAINSAW_ENDPOINT = "http://localhost:3000/api/threats"
+
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        return sys._MEIPASS
+    else:
+        # Running as script
+        return os.path.dirname(os.path.abspath(__file__))
 
 def event_type_to_string(event_type):
     types = {
@@ -61,6 +70,54 @@ def get_security_logs(start_time):
     logging.info(f"Collected {len(logs)} events from Security log")
     return logs
 
+def save_evtx(log_type, filename):
+    try:
+        os.system(f'wevtutil epl {log_type} {filename}')
+        logging.info(f"Saved EVTX file: {filename}")
+    except Exception as e:
+        logging.error(f"Error saving EVTX file: {str(e)}")
+
+def analyze_with_chainsaw(evtx_file, start_time, end_time):
+    base_path = get_base_path()
+    chainsaw_path = os.path.join(base_path, "chainsaw.exe")
+    sigma_rules_path = os.path.join(base_path, "sigma", "logins")
+    mappings_path = os.path.join(base_path, "mappings", "sigma-event-logs-all.yml")
+    
+    output_folder = os.path.join(base_path, "output")
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    output_file = os.path.join(output_folder, f"chainsaw_results_{start_time.strftime('%Y%m%d_%H%M%S')}.json")
+
+    command = [
+        chainsaw_path,
+        "hunt",
+        evtx_file,
+        "-s", sigma_rules_path,
+        "--mapping", mappings_path,
+        "--from", start_time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "--to", end_time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "--json",
+        "--output", output_file
+    ]
+
+    try:
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
+        stdout, stderr = process.communicate()
+
+        if process.returncode == 0:
+            logging.info("Chainsaw analysis completed successfully.")
+            logging.info(f"Output file: {output_file}")
+            logging.info(f"Command output: {stdout}")
+            return output_file
+        else:
+            logging.error("Chainsaw analysis failed.")
+            logging.error(f"Error: {stderr}")
+            return None
+    except Exception as e:
+        logging.error(f"An error occurred during Chainsaw analysis: {str(e)}")
+        return None
+
 async def upload_to_api(logs, access_key):
     try:
         # Create XML
@@ -91,6 +148,22 @@ async def upload_to_api(logs, access_key):
     except Exception as e:
         logging.error(f"Error uploading to API: {str(e)}")
 
+def upload_chainsaw_results(json_file, access_key):
+    try:
+        with open(json_file, 'rb') as f:
+            files = {'json_file': (os.path.basename(json_file), f, 'application/json')}
+            data = {'accessKey': access_key}
+            
+            response = requests.post(CHAINSAW_ENDPOINT, files=files, data=data)
+            
+        if response.status_code == 200:
+            logging.info(f"Uploaded Chainsaw results to API successfully")
+        else:
+            logging.error(f"Failed to upload Chainsaw results to API. Status code: {response.status_code}")
+            logging.error(f"Response: {response.text}")
+    except Exception as e:
+        logging.error(f"Error uploading Chainsaw results to API: {str(e)}")
+
 async def main(access_key):
     while True:
         start_time = datetime.datetime.now() - datetime.timedelta(minutes=10)
@@ -102,6 +175,22 @@ async def main(access_key):
         
         if logs:
             await upload_to_api(logs, access_key)
+            
+            # Create evtx folder if it doesn't exist
+            evtx_folder = os.path.join(get_base_path(), "evtx")
+            if not os.path.exists(evtx_folder):
+                os.makedirs(evtx_folder)
+            
+            # Save logs to EVTX
+            timestamp = start_time.strftime('%Y%m%d_%H%M%S')
+            base_filename = f"Security_{timestamp}"
+            evtx_file = os.path.join(evtx_folder, f"{base_filename}.evtx")
+            save_evtx('Security', evtx_file)
+            
+            # Analyze with Chainsaw
+            chainsaw_output = analyze_with_chainsaw(evtx_file, start_time, end_time)
+            if chainsaw_output:
+                upload_chainsaw_results(chainsaw_output, access_key)
         
         logging.info(f"Log collection cycle completed. Waiting for next cycle.")
         
@@ -126,4 +215,3 @@ if __name__ == "__main__":
         logging.info("Script terminated by user")
     except Exception as e:
         logging.critical(f"Unexpected error: {str(e)}")
-
