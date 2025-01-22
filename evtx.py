@@ -11,12 +11,13 @@ import asyncio
 import socket
 import sys
 import subprocess
-
+from datetime import timezone
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 API_ENDPOINT = "http://localhost:3000/api/logs"
-CHAINSAW_ENDPOINT = "http://localhost:3000/api/threats"
+CHAINSAW_ENDPOINT = "http://localhost:3000/api/chainsaw_logs"
+
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
@@ -80,7 +81,7 @@ def save_evtx(log_type, filename):
 def analyze_with_chainsaw(evtx_file, start_time, end_time):
     base_path = get_base_path()
     chainsaw_path = os.path.join(base_path, "chainsaw.exe")
-    sigma_rules_path = os.path.join(base_path, "sigma", "logins")
+    sigma_rules_path = os.path.join(base_path, "needed")
     mappings_path = os.path.join(base_path, "mappings", "sigma-event-logs-all.yml")
     
     output_folder = os.path.join(base_path, "output")
@@ -188,7 +189,9 @@ async def main(access_key):
             save_evtx('Security', evtx_file)
             
             # Analyze with Chainsaw
-            chainsaw_output = analyze_with_chainsaw(evtx_file, start_time, end_time)
+            start_time_utc = start_time.astimezone(timezone.utc)
+            end_time_utc = end_time.astimezone(timezone.utc)
+            chainsaw_output = analyze_with_chainsaw(evtx_file, start_time_utc, end_time_utc)
             if chainsaw_output:
                 upload_chainsaw_results(chainsaw_output, access_key)
         
