@@ -1,0 +1,20 @@
+title: Unlock Logon (Logon Type 7)
+id: 12345678-1234-1234-1234-123456789016
+status: experimental
+description: Detects unlock logons (Logon Type 7) where a user unlocks a workstation.
+author: Your Name
+date: 2023/10/01
+tags:
+  - attack.defense_evasion
+  - attack.t1078
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4624
+    LogonType: 7
+  condition: selection
+falsepositives:
+  - Normal user activity
+level: low

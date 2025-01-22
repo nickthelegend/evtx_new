@@ -1,0 +1,20 @@
+title: Interactive Logon (Logon Type 2)
+id: 12345678-1234-1234-1234-123456789012
+status: experimental
+description: Detects interactive logons (Logon Type 2) where a user logs on at the keyboard and screen of the system.
+author: Your Name
+date: 2023/10/01
+tags:
+  - attack.defense_evasion
+  - attack.t1078
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4624
+    LogonType: 2
+  condition: selection
+falsepositives:
+  - Normal user activity
+level: low

@@ -1,0 +1,20 @@
+title: Remote Interactive Logon (Logon Type 10)
+id: 12345678-1234-1234-1234-123456789019
+status: experimental
+description: Detects remote interactive logons (Logon Type 10), such as when using RDP.
+author: Your Name
+date: 2023/10/01
+tags:
+  - attack.lateral_movement
+  - attack.t1078
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4624
+    LogonType: 10
+  condition: selection
+falsepositives:
+  - Normal remote administration activity
+level: medium
