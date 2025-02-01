@@ -215,7 +215,7 @@ async def main(access_key, email):
     logging.info(f"Local IP Address: {local_ip}")
 
     while True:
-        start_time = datetime.datetime.now() - datetime.timedelta(minutes=10)
+        start_time = datetime.datetime.now() - datetime.timedelta(seconds=10)
         end_time = datetime.datetime.now()
         
         logging.info(f"Starting log collection for period: {start_time} to {end_time}")
@@ -249,7 +249,7 @@ async def main(access_key, email):
         next_run = datetime.datetime.now() + datetime.timedelta(minutes=10)
         next_run = next_run.replace(minute=next_run.minute // 10 * 10, second=0, microsecond=0)
         wait_time = (next_run - datetime.datetime.now()).total_seconds()
-        await asyncio.sleep(10)
+        # await asyncio.sleep(10)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Windows Log Collector and Chainsaw Analyzer")
