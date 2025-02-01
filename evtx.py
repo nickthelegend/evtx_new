@@ -17,9 +17,9 @@ import argparse
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-API_ENDPOINT = "http://localhost:3000/api/logs"
-CHAINSAW_ENDPOINT = "http://localhost:3000/api/chainsaw_logs"
-
+API_ENDPOINT = "http://localhost:3001/api/logs"
+CHAINSAW_ENDPOINT = "http://localhost:3001/api/chainsaw_logs"
+SENDEMAIL_ENDPOINT = "http://localhost:3001/api/sendemail"
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
@@ -162,7 +162,7 @@ async def upload_to_api(logs, access_key):
     except Exception as e:
         logging.error(f"Error uploading to API: {str(e)}")
 
-def upload_chainsaw_results(json_file, access_key, ip_address, desktop_name):
+def upload_chainsaw_results(json_file, access_key, ip_address, desktop_name, email):
     try:
         with open(json_file, 'r') as f:
             chainsaw_logs = json.load(f)
@@ -178,6 +178,7 @@ def upload_chainsaw_results(json_file, access_key, ip_address, desktop_name):
             'desktopName': desktop_name
         }
         
+        # Send to chainsaw_logs endpoint
         response = requests.post(CHAINSAW_ENDPOINT, files=files, data=data)
         
         if response.status_code == 200:
@@ -185,10 +186,24 @@ def upload_chainsaw_results(json_file, access_key, ip_address, desktop_name):
         else:
             logging.error(f"Failed to upload Chainsaw results to API. Status code: {response.status_code}")
             logging.error(f"Response: {response.text}")
+
+        # Send to sendemail endpoint
+        email_data = {
+            'email': email,
+            'jsonData': chainsaw_logs
+        }
+        email_response = requests.post(SENDEMAIL_ENDPOINT, json=email_data)
+
+        if email_response.status_code == 200:
+            logging.info(f"Sent email with Chainsaw results successfully")
+        else:
+            logging.error(f"Failed to send email with Chainsaw results. Status code: {email_response.status_code}")
+            logging.error(f"Response: {email_response.text}")
+
     except Exception as e:
         logging.error(f"Error uploading Chainsaw results to API: {str(e)}")
 
-async def main(access_key):
+async def main(access_key, email):
     desktop_name = socket.gethostname()
     local_ip = get_local_ip()
 
@@ -226,7 +241,7 @@ async def main(access_key):
             end_time_utc = end_time.astimezone(timezone.utc)
             chainsaw_output = analyze_with_chainsaw(evtx_file, start_time_utc, end_time_utc)
             if chainsaw_output:
-                upload_chainsaw_results(chainsaw_output, access_key, local_ip, desktop_name)
+                upload_chainsaw_results(chainsaw_output, access_key, local_ip, desktop_name, email)
         
         logging.info(f"Log collection cycle completed. Waiting for next cycle.")
         
@@ -234,21 +249,23 @@ async def main(access_key):
         next_run = datetime.datetime.now() + datetime.timedelta(minutes=10)
         next_run = next_run.replace(minute=next_run.minute // 10 * 10, second=0, microsecond=0)
         wait_time = (next_run - datetime.datetime.now()).total_seconds()
-        await asyncio.sleep(wait_time)
+        await asyncio.sleep(10)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Windows Log Collector and Chainsaw Analyzer")
     parser.add_argument("-a", "--access-key", required=True, help="Access key for API authentication")
+    parser.add_argument("-e", "--email", required=True, help="Email address for receiving reports")
     args = parser.parse_args()
 
     access_key = args.access_key
+    email = args.email
     logging.info(f"Logging Access key {access_key}")
+    logging.info(f"Email for reports: {email}")
 
     logging.info("Starting Windows Log Collector")
     try:
-        asyncio.run(main(access_key))
+        asyncio.run(main(access_key, email))
     except KeyboardInterrupt:
         logging.info("Script terminated by user")
     except Exception as e:
         logging.critical(f"Unexpected error: {str(e)}")
-
